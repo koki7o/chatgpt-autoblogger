@@ -80,9 +80,9 @@ def clear_image_urls():
 print("Commencing file uploads...")
 # Upload your files using paths from the config file
 internal_links_file_id = upload_file(
-    config["path_to_example_file"], 'assistants')
+    config["path_to_example_file_2"], 'assistants')
 content_plan_file_id = upload_file(config["path_to_plan_csv"], 'assistants')
-brand_plan_file_id = upload_file(config["path_to_example_file"], 'assistants')
+brand_plan_file_id = upload_file(config["path_to_example_file_1"], 'assistants')
 images_file_id = upload_file(config["path_to_website_images"], 'assistants')
 
 # Create an Assistant
@@ -91,40 +91,35 @@ print("Creating OpenAI Assistant...")
 args = (config['business_name'],
         config['path_to_website_images'],
         config['path_to_links_file'],
-        config['path_to_example_file'],
+        config['path_to_example_file_1'],
         config['page_type'],
         config['business_type'],
         config['country'],
-        config['language'])
+        config['language'],
+        config['path_to_example_file_2'],)
 
 assistant = client.beta.assistants.create(
     name="Content Creation Assistant",
     model="gpt-4-turbo-preview",
     instructions='''
         You are writing for {0}. 
-        Choose product images and internal links from {1} 
-        and {2} and embed them with markdown in the final article. 
-        You must never EVER invent internal links or image links as this can destroy my SEO. 
-        YOU MUST INCLUDE INTERNAL LINKS FROM {2} - 
-        read this first and make sure to include real internal links in the final article in the blog post 
+        Choose images and internal links from {1} 
+        and embed them with markdown in the final article. 
+        You must never EVER invent internal links or image links as this can destroy my SEO.  
         When told to use retrieval use retrieval, when told to use code_interpreter use code interpreter. 
-        The final content should include internal links and embedded product images from 
-        {1} and should include formatting. Your basic steps are: 1. 
-        read {1}, get the image, create some visualizations of data, 
-        store these for the final article. 2. Find relevant brand images {1}, 
-        create an outline, then write an article with all of this data you've either 
-        created or found Copy the tone from {3} EXACTLY. 
-        Read {3}. Use this as a guide to shape the final {4}. 
-        The {4} should follow the length and tone of {3}. 
+        The final content should include embedded images from 
+        {1} and should include formatting. Your basic steps are: 
+        1. read {1}, get the image, store these for the final article. 
+        2. Find relevant brand images {1}, create an outline, then write an article with all of this data you've either created or found 
+        Copy the tone from {3} and {8} EXACTLY. 
+        Read {3} and {8}. Use this as a guide to shape the final {4}. 
+        The {4} should follow the length and tone of {3} and {8}. 
         You are SEOGPT, aiming to create in-depth and interesting blog posts for {0}, 
         an {5} in {6}, 
         you should write at a grade 7 level {7} 
-        Every blog post should include at least 3 product images and links to their other pages 
-        from {0}.. Ensure the brand image links are accurate. 
-        Choose only relevant brand pages. Do not invent image links. 
-        Pick 5 strictly relevant brand images and internal links for the articles. 
+        Every blog post should include at least 3 images. Ensure the image links are accurate. 
         First, read the attached files, then create a detailed outline for a {4}, 
-        including up to 5 highly relevant internal collection links and brand image links.
+        including up to 5 highly relevant brand image links.
     '''.format(*args),
     tools=[{"type": "retrieval"}, {"type": "code_interpreter"}],
     file_ids=[internal_links_file_id, content_plan_file_id,
@@ -169,18 +164,20 @@ def perplexity_research(Keyword, max_retries=3, delay=5):
             },
             {
                 "role": "user",
-                "content": f"Find highly specific generalised data about {Keyword} in 2024. Do not give me any information about specific brands."
+                "content": '''Find highly specific generalised data about {0} in 2024. 
+                Do not give me any information about specific brands.'''.format(Keyword)
             }
         ]
     }
     headers = {
         "accept": "application/json",
         "content-type": "application/json",
-        "authorization": f"Bearer {config['PERPLEXITY_API_KEY']}"
+        "authorization": f"Bearer {config['PERPLEXITY_API_KEY']}",
+
     }
 
     for attempt in range(max_retries):
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, verify=False)
         if response.status_code == 200:
             print("Perplexity research completed successfully.")
             try:
@@ -198,15 +195,19 @@ def perplexity_research(Keyword, max_retries=3, delay=5):
 
 
 def get_internal_links(thread_id, Keyword):
-    print(f"Fetching internal links relevant to: {Keyword}")
-    get_request = f"Use Retrieval. Read brandimagesandlinks.txt, Choose 5 relevant pages, their links and their respective images, that are relevant to {Keyword}. Don't have more than 5. Now read images.txt - choose 5 relevant product images to this article"
+    print(f"Fetching images relevant to: {Keyword}")
+
+    get_request = '''Use Retrieval. Read brandimages.txt, 
+    Choose 3 images, that are relevant to {0}. Don't have more than 5. 
+    '''.format(Keyword)
+
     client.beta.threads.messages.create(
         thread_id=thread_id, role="user", content=get_request)
     get_request_run = client.beta.threads.runs.create(
         thread_id=thread_id, assistant_id=assistant.id)
     wait_for_run_completion(thread_id, get_request_run.id)
     messages = client.beta.threads.messages.list(thread_id=thread_id)
-    print("Internal links fetched successfully.")
+    print("Images fetched successfully.")
     return next((m.content for m in messages.data if m.role == "assistant"), None)
 
 
@@ -253,7 +254,21 @@ def process_blog_post(thread_id, Keyword):
                            for img in image_urls if img['idea'] == Keyword]
     images_for_request = " ".join(relevant_image_urls)
 
-    outline_request = f"Use retrieval. Look at brandimagesandlinks.txt. Create a SHORT outline for a {config['page_type']} based on {perplexity_research}. Do not invent image links. use the product images and internal links from {internal_links} and the include the custom graphs from {images_for_request} and use them to create an outline for a {config['page_type']} about {Keyword}' In the outline do not use sources or footnotes, but just add a relevant product images in a relevant section, and a relevant internal link in a relevant section. There is no need for a lot of sources, each article needs a minimum of 5 brand images and internal links."
+    outline_args = (
+        config['page_type'],
+        perplexity_research,
+        internal_links,
+        images_for_request,
+        Keyword
+    )
+
+    outline_request = '''Use retrieval. Look at brandimagesandlinks.txt. 
+    Create a SHORT outline for a {0} based on {1}. 
+    Do not invent image links. use the product images from {2} 
+    and use them to create an outline for a {0} about '{4}' 
+    In the outline do not use sources or footnotes, but just add a relevant product images in a relevant section.
+    There is no need for a lot of sources, 
+    each article needs a minimum of 3 brand images.'''.format(*outline_args)
 
     client.beta.threads.messages.create(
         thread_id=thread_id, role="user", content=outline_request)
@@ -264,9 +279,45 @@ def process_blog_post(thread_id, Keyword):
     outline = next(
         (m.content for m in messages.data if m.role == "assistant"), None)
 
+    article_args = (
+        get_internal_links,
+        config['language'],
+        internal_links,
+        outline,
+        images_for_request,
+        research_results,
+        config['tone'],
+        config['page_type'],
+        research_info,
+        config['path_to_example_file_1'],
+        config['path_to_example_file_2'],
+    )
+
     article = None
     if outline:
-        article_request = f"Please include images from {get_internal_links} Write a short, snappy article in {config['language']} Write at a grade 7 level. ONLY USE INTERNAL LINKS FROM {internal_links} You never invent internal links or image links. Also include real internal links from brandimagesandlinks.txt Based on \n{outline} and Make sure to use a mix of the {images_for_request} and brand images. Include highly specific information from {research_results}. Do not use overly creative or crazy language. Use a {config['tone']} tone of voice. Write as if writing for The Guardian newspaper.. Just give information. Don't write like a magazine. Use simple language. Do not invent image links. You are writing from a first person plural perspective for the business, refer to it in the first person plural. Add a key takeaway table at the top of the article, summarzing the main points. Never invent links or brand images Choose 5 internal links and 5 brand images that are relevant to a pillar page and then create a pillar page with good formatting based on the following outline:\n{outline}, Title should be around 60 characters. Include the brand images and internal links to other pillar pages naturally and with relevance inside the {config['page_type']}. Use markdown formatting and ensure to use tables and lists to add to formatting. Use 3 relevant brand images and pillar pages with internal links maximum. Never invent any internal links.  Include all of the internal links and brand images from {outline} Use different formatting to enrich the pillar page. Always include a table at the very top wtih key takeaways, also include lists to make more engaging content. Use Based on the outline: {outline}, create an article. Use {images_for_request} with the image name inside [] and with the link from {images_for_request} in order to enrich the content, create a pillar page about this topic. Use the brand images and internal links gathered from {internal_links}. Use {research_info} to make the  more relevant. The end product shuold look like {config['path_to_example_file']} as an example"
+        article_request = '''Please include images from {2} 
+        Write a short, snappy article in {1} Write at a grade 7 level. 
+        ONLY USE IMAGE LINKS FROM {2} You never invent image links. 
+        Also include real image links from brandimages.txt, based on \n{3}\n 
+        Include highly specific information from {5}. Do not use overly creative or crazy language. 
+        Use a {6} tone of voice. Write as if writing for The Guardian newspaper.
+        Just give information. Don't write like a magazine. Use simple language. Do not invent image links. 
+        You are writing from a first person plural perspective for the business, refer to it in the first person plural.
+         Add a key takeaway table at the top of the article, summarzing the main points. 
+         Never invent brand images. 
+         Use 3 brand images that are relevant to a pillar page and then create a pillar page with good formatting based on the following outline:\n{3}, 
+         Title should be around 60 characters. 
+         Include the brand images to other pillar pages naturally and with relevance inside the {7}.
+         Use markdown formatting and ensure to use tables and lists to add to formatting. 
+         Use 3 relevant brand images and pillar pages maximum.  
+         Include all of brand images from {3}, never invent brand images.
+         Use different formatting to enrich the pillar page. 
+         Always include a table at the very top wtih key takeaways, also include lists to make more engaging content. 
+         Use Based on the outline: \n{3}\n, create an article. 
+         Use {4} with the image name inside [] and with the link from {4} in order to enrich the content, 
+         create a pillar page about this topic. Use the brand images links gathered from {2}. 
+         Use {8} to make the article more relevant. The end product should look like {9} and {10} as examples'''.format(*article_args)
+
         client.beta.threads.messages.create(
             thread_id=thread_id, role="user", content=article_request)
         article_run = client.beta.threads.runs.create(
@@ -285,7 +336,7 @@ def process_blog_post(thread_id, Keyword):
 
 
 def process_keywords_concurrent():
-    input_file = 'keywords.csv'
+    input_file = 'optimized_keywords.csv'
     output_file = 'processed_keywords.csv'
 
     # Corrected fieldnames array to include a missing comma and ensure it matches expected output

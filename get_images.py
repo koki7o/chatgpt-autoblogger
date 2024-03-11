@@ -12,7 +12,7 @@ PEXELS_API_KEY = config["PEXELS_API_KEY"]
 
 
 def get_images(Keyword):
-    url = f'https://api.pexels.com/v1/search?query={Keyword}&per_page=10'
+    url = f'https://api.pexels.com/v1/search?query={Keyword}'
 
     headers = { 
         'Authorization': PEXELS_API_KEY 
@@ -22,9 +22,9 @@ def get_images(Keyword):
     
     response = json.loads(r.content)
     photos = response['photos']
-    with open('brandimagesandlinks.txt', 'a', newline='') as f_output:
+    with open('brandimages.txt', 'a', newline='') as f_output:
         for photo in photos:
-            f_output.write(photo['url']+'\n')
+            f_output.write(photo['src']['small']+'\n')
 
 
 input_file = 'optimized_keywords.csv'

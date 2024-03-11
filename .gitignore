@@ -1,2 +1,6 @@
 env
 config.json
+optimized_keywords.csv
+processed_keywords.csv
+format.py
+extractimages.py
