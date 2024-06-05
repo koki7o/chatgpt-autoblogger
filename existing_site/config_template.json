@@ -6,7 +6,7 @@
     "business_name": "YOUR_BUSINESS_NAME",
     "page_type": "PAGE_TYPE_HERE", 
     "business_type": "BUSINESS_TYPE_HERE",
-    "path_to_links_file": "path_to_image_file",
+    "path_to_links_file": "path_to_links_file",
     "path_to_example_file_1": "path_to_example_1",
     "path_to_example_file_2": "path_to_example_2",
     "path_to_plan_csv": "path_to_plan_csv",
