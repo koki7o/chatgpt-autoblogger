@@ -245,7 +245,7 @@ def process_blog_post(thread_id, Keyword):
     research_results = perplexity_research(Keyword)
     research_info = str(research_results)
 
-    create_data_vis(thread_id, research_info, Keyword)
+    #create_data_vis(thread_id, research_info, Keyword)
 
     internal_links = get_internal_links(thread_id, Keyword)
 
@@ -262,7 +262,7 @@ def process_blog_post(thread_id, Keyword):
         Keyword
     )
 
-    outline_request = '''Use retrieval. Look at brandimagesandlinks.txt. 
+    outline_request = '''Use file_search. Look at brandimages.txt and internal_links.txt. 
     Create a SHORT outline for a {0} based on {1}. 
     Do not invent image links. use the product images from {2} 
     and use them to create an outline for a {0} about '{4}' 
